@@ -93,14 +93,14 @@ module "network" {
   location = module.rg.rg_location
   tags     = module.rg.rg_tags
 
-  vnet_name     = local.vnet_name
-  vnet_location = module.rg.rg_location
+  vnet_name          = local.vnet_name
+  vnet_location      = module.rg.rg_location
   vnet_address_space = [module.subnet_calculator.base_cidr]
 
   subnets = {
     for i, name in module.subnet_calculator.subnet_names :
     name => {
-      address_prefixes = toset([module.subnet_calculator.subnet_ranges[i]])
+      address_prefixes  = toset([module.subnet_calculator.subnet_ranges[i]])
       service_endpoints = name == local.storage_subnet_name ? ["Microsoft.Storage"] : name == local.key_vault_subnet_name ? ["Microsoft.KeyVault"] : []
 
       # Only assign delegation to DevOps Agent Subnet
@@ -137,10 +137,10 @@ module "nsg" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "nsg_assoc" {
-    for_each = module.network.subnets_ids
+  for_each = module.network.subnets_ids
 
-    subnet_id                 = each.value
-    network_security_group_id = module.nsg.nsg_id
+  subnet_id                 = each.value
+  network_security_group_id = module.nsg.nsg_id
 }
 
 

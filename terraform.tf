@@ -16,5 +16,6 @@ terraform {
       source = "microsoft/azuredevops"
     }
   }
-  backend "local" {} # Use local backend for storing since this is a bootstrap
+
+  backend "azurerm" {}
 }
