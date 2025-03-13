@@ -1,19 +1,24 @@
-variable "location" {
-  description = "The location for this resource to be put in"
+variable "AZDO_ORG_ID" {
+  description = "Azure DevOps Organization ID, passed as a TF_VAR"
   type        = string
+  nullable    = false
 }
 
-variable "name" {
+variable "AZDO_ORG_NAME" {
+  description = "Azure DevOps Organization Name, passed as a TF_VAR"
   type        = string
-  description = "The name of the VNet gateway"
+  nullable    = false
 }
 
-variable "rg_name" {
-  description = "The name of the resource group, this module does not create a resource group, it is expecting the value of a resource group already exists"
+variable "AZDO_PROJECT_NAME" {
+  description = "Azure DevOps Project Name, passed as a TF_VAR"
   type        = string
+  nullable    = false
 }
 
-variable "tags" {
-  type        = map(string)
-  description = "A map of the tags to use on the resources that are deployed with this module."
+variable "AZDO_PAT_TOKEN" {
+  description = "Azure DevOps Personal Access Token, passed as a TF_VAR"
+  type        = string
+  sensitive   = true
+  nullable    = false
 }

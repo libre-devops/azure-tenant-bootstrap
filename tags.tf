@@ -1,6 +1,6 @@
 locals {
   dynamic_tags = {
-    "Environment" = var.env
+    "Environment" = local.env
     "LastUpdated" = formatdate("DDMMYYYY:hhmmss", timestamp())
 
   }
@@ -14,6 +14,6 @@ variable "static_tags" {
   default = {
     "CostCentre" = "671888"
     "ManagedBy"  = "Terraform"
-    "Contact"    = "info@cyber.scot"
+    "Contact"    = "libredevops.org"
   }
 }
