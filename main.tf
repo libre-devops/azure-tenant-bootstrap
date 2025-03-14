@@ -21,7 +21,7 @@ locals {
   azure_devops_subnet_name     = "devopsAgentSubnet"
   storage_account_name         = "satf${local.name}${local.loc}${local.env}01"
   tf_state_blob_container_name = "tfstate"
-  key_vault_name               = "kv-${local.name}-${local.loc}-${local.env}-01"
+  key_vault_name               = "kv-${local.name}-${local.loc}-${local.env}-mgmt-01"
 }
 
 module "service_principal" {
