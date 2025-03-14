@@ -1,27 +1,33 @@
 locals {
-  loc                          = "uks"
-  name                         = "libd"
-  long_name                    = "libre-devops"
-  env                          = "dev"
-  management_rg_name           = "rg-${local.name}-${local.loc}-${local.env}-mgmt"
-  location                     = "uksouth"
-  spn_name                     = "spn-${local.name}-${local.loc}-${local.env}-mgmt-01"
-  spn_description              = "Service Principal for ${local.long_name} ${local.loc} ${local.env} Management"
-  fed_cred_name                = "fedcred-${local.spn_name}"
-  fed_cred_description         = "Federated Credential for Azure DevOps ${data.azuredevops_project.current.name} ${local.spn_name}"
-  fed_cred_audiences           = ["api://AzureADTokenExchange"]
-  uid_name                     = "uid-${local.name}-${local.loc}-${local.env}-mgmt-01"
-  uid_fed_cred_name            = "fedcred-${local.uid_name}"
-  vnet_name                    = "vnet-${local.name}-${local.loc}-${local.env}-mgmt-01"
-  nsg_name                     = "nsg-${local.name}-${local.loc}-${local.env}-mgmt-01"
-  vnet_address_space           = ["10.0.0.0/16"]
-  default_subnet_name          = "defaultSubnet"
-  storage_subnet_name          = "storageSubnet"
-  key_vault_subnet_name        = "keyVaultSubnet"
-  azure_devops_subnet_name     = "devopsAgentSubnet"
-  storage_account_name         = "satf${local.name}${local.loc}${local.env}01"
-  tf_state_blob_container_name = "tfstate"
-  key_vault_name               = "kv-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  loc                                  = "uks"
+  name                                 = "libd"
+  long_name                            = "libre-devops"
+  env                                  = "dev"
+  management_rg_name                   = "rg-${local.name}-${local.loc}-${local.env}-mgmt"
+  location                             = "uksouth"
+  spn_name                             = "spn-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  spn_description                      = "Service Principal for ${local.long_name} ${local.loc} ${local.env} Management"
+  fed_cred_name                        = "fedcred-${local.spn_name}"
+  fed_cred_description                 = "Federated Credential for Azure DevOps ${data.azuredevops_project.current.name} ${local.spn_name}"
+  fed_cred_audiences                   = ["api://AzureADTokenExchange"]
+  uid_name                             = "uid-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  uid_fed_cred_name                    = "fedcred-${local.uid_name}"
+  vnet_name                            = "vnet-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  nsg_name                             = "nsg-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  vnet_address_space                   = ["10.0.0.0/16"]
+  default_subnet_name                  = "defaultSubnet"
+  storage_subnet_name                  = "storageSubnet"
+  key_vault_subnet_name                = "keyVaultSubnet"
+  azure_devops_subnet_name             = "devopsAgentSubnet"
+  storage_account_name                 = "satf${local.name}${local.loc}${local.env}01"
+  tf_state_blob_container_name         = "tfstate"
+  key_vault_name                       = "kv-${local.name}-${local.loc}-${local.env}-mgmt-01"
+  ssh_public_key_name                  = "ssh-${local.name}-${local.loc}-${local.env}-pub-mgmt-01"
+  ssh_private_key_secret_name          = "MgmtSshKey"
+  ssh_key_algorithm                    = "ED25519"
+  managed_identity_variable_group_name = "vg-${local.name}-${local.loc}-${local.env}-mgmt-uid-01"
+  spn_variable_group_name              = "vg-${local.name}-${local.loc}-${local.env}-mgmt-spn-01"
+  variable_group_description           = "Link to the ${local.key_vault_name}"
 }
 
 module "service_principal" {
@@ -201,6 +207,20 @@ resource "azurerm_storage_account_network_rules" "rules" {
   ]
 }
 
+resource "tls_private_key" "mgmt_ssh" {
+  algorithm = local.ssh_key_algorithm
+}
+
+resource "azurerm_ssh_public_key" "ssh" {
+
+  resource_group_name = module.rg.rg_name
+  location            = module.rg.rg_location
+  tags                = module.rg.rg_tags
+
+  name       = local.ssh_public_key_name
+  public_key = tls_private_key.mgmt_ssh.public_key_openssh
+}
+
 
 module "key_vault" {
   source = "libre-devops/keyvault/azurerm"
@@ -233,6 +253,13 @@ module "key_vault" {
   ]
 }
 
+resource "azurerm_key_vault_secret" "secret" {
+  depends_on   = [module.role_assignments]
+  key_vault_id = module.key_vault.key_vault_ids[0]
+  content_type = "text"
+  name         = local.ssh_private_key_secret_name
+  value        = tls_private_key.mgmt_ssh.private_key_pem
+}
 
 resource "azuredevops_serviceendpoint_azurerm" "azure_devops_service_endpoint_azurerm_spn" {
   depends_on                             = [module.role_assignments]
@@ -273,4 +300,36 @@ resource "azurerm_federated_identity_credential" "federated_credential" {
   audience            = local.fed_cred_audiences
   issuer              = azuredevops_serviceendpoint_azurerm.azure_devops_service_endpoint_azurerm_managed_identity.workload_identity_federation_issuer
   subject             = azuredevops_serviceendpoint_azurerm.azure_devops_service_endpoint_azurerm_managed_identity.workload_identity_federation_subject
+}
+
+resource "azuredevops_variable_group" "managed_identity_vg" {
+  project_id   = data.azuredevops_project.current.id
+  name         = local.managed_identity_variable_group_name
+  description  = local.variable_group_description
+  allow_access = true
+
+  key_vault {
+    name                = module.key_vault.key_vault_names[0]
+    service_endpoint_id = azuredevops_serviceendpoint_azurerm.azure_devops_service_endpoint_azurerm_managed_identity.id
+  }
+
+  variable {
+    name = local.ssh_private_key_secret_name
+  }
+}
+
+resource "azuredevops_variable_group" "spn_vg" {
+  project_id   = data.azuredevops_project.current.id
+  name         = local.spn_variable_group_name
+  description  = local.variable_group_description
+  allow_access = true
+
+  key_vault {
+    name                = module.key_vault.key_vault_names[0]
+    service_endpoint_id = azuredevops_serviceendpoint_azurerm.azure_devops_service_endpoint_azurerm_spn.id
+  }
+
+  variable {
+    name = local.ssh_private_key_secret_name
+  }
 }

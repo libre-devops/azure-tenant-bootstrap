@@ -15,6 +15,9 @@ terraform {
     azuredevops = {
       source = "microsoft/azuredevops"
     }
+    tls = {
+      source = "hashicorp/tls"
+    }
   }
 
   backend "azurerm" {}
